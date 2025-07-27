@@ -1,46 +1,140 @@
 import gitService from '../services/gitService.js';
 import buildService from '../services/buildService.js';
 import s3Service from '../services/s3Service.js';
-import dotenv from 'dotenv';
+import cacheService from '../services/cacheService.js';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
-import fs from 'fs';
+import fs from 'fs-extra';
+import config from '../config/index.js';
+import logger from '../../setup/logger.js';
+import { AppError } from '../middleware/errorHandler.js';
 
-dotenv.config();
-
-const updatePackageHomepage = (projectPath) => {
+const updatePackageHomepage = async (projectPath) => {
   const packageJsonPath = path.join(projectPath, 'package.json');
 
-  if (!fs.existsSync(packageJsonPath)) {
-    throw new Error('package.json not found');
+  try {
+    if (!(await fs.pathExists(packageJsonPath))) {
+      throw new AppError('package.json not found', 400);
+    }
+
+    const packageData = await fs.readJson(packageJsonPath);
+    
+    // Modify the homepage field for proper relative path handling
+    packageData.homepage = ".";
+    
+    // Save it back
+    await fs.writeJson(packageJsonPath, packageData, { spaces: 2 });
+    
+    logger.info(`✅ Updated homepage in package.json for project at ${projectPath}`);
+  } catch (error) {
+    logger.error(`Failed to update package.json: ${error.message}`);
+    throw new AppError('Failed to update package.json configuration', 500);
   }
-
-  const packageData = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
-
-  // Modify the homepage field
-  packageData.homepage = ".";
-
-  // Save it back
-  fs.writeFileSync(packageJsonPath, JSON.stringify(packageData, null, 2), 'utf-8');
-
-  console.log(`✅ Updated homepage in package.json`);
 };
 
-const deployApp = async (req, res) => {
-  const { githubUrl, projectName } = req.body;
-  const tempDir = `/tmp/${uuidv4()}`;
+const cleanupTempDirectory = async (tempDir) => {
+  try {
+    if (await fs.pathExists(tempDir)) {
+      await fs.remove(tempDir);
+      logger.info(`Cleaned up temporary directory: ${tempDir}`);
+    }
+  } catch (error) {
+    logger.warn(`Failed to cleanup temporary directory ${tempDir}: ${error.message}`);
+  }
+};
+
+const deployApp = async (req, res, next) => {
+  const { githubUrl, projectName, buildCommand, outputDir } = req.body;
+  const deploymentId = uuidv4();
+  const tempDir = path.join(config.build.tempDir, deploymentId);
+  
+  const startTime = Date.now();
+  
+  logger.info(`Starting deployment for project: ${projectName}`, {
+    deploymentId,
+    githubUrl,
+    projectName,
+    buildCommand,
+    outputDir
+  });
 
   try {
-    const localPath = await gitService(githubUrl, tempDir, { shallow: true }); // shallow clone
-    updatePackageHomepage(tempDir);
-    const buildPath = await buildService(localPath, { noSourceMap: true }); // disable sourcemaps
-    await s3Service(buildPath, projectName);
+    // Check if this project was recently deployed (cache check)
+    const cacheKey = `deployment:${projectName}:${Buffer.from(githubUrl).toString('base64')}`;
+    const cachedResult = await cacheService.get(cacheKey);
+    
+    if (cachedResult) {
+      logger.info(`Returning cached deployment result for ${projectName}`);
+      return res.status(200).json({
+        success: true,
+        url: cachedResult.url,
+        deploymentId,
+        cached: true,
+        message: 'Deployment served from cache'
+      });
+    }
 
-    const cloudfrontUrl = `${process.env.CLOUDFRONT_URL}/${projectName}/index.html`;
-    res.status(200).json({ success: true, url: cloudfrontUrl });
+    // Step 1: Clone repository
+    logger.info(`Cloning repository: ${githubUrl}`);
+    const localPath = await gitService(githubUrl, tempDir, { shallow: true });
+    
+    // Step 2: Update package.json configuration
+    await updatePackageHomepage(localPath);
+    
+    // Step 3: Build the project
+    logger.info(`Building project with command: ${buildCommand}`);
+    const buildPath = await buildService(localPath, { 
+      noSourceMap: true,
+      buildCommand,
+      outputDir
+    });
+    
+    // Step 4: Upload to S3
+    logger.info(`Uploading build to S3 bucket: ${config.aws.s3Bucket}`);
+    await s3Service(buildPath, projectName);
+    
+    // Step 5: Generate CloudFront URL
+    const cloudfrontUrl = `${config.aws.cloudfrontUrl}/${projectName}/index.html`;
+    
+    // Step 6: Cache the result
+    const result = {
+      url: cloudfrontUrl,
+      deployedAt: new Date().toISOString(),
+      projectName,
+      deploymentId
+    };
+    
+    await cacheService.set(cacheKey, result, config.redis.ttl);
+    
+    const deploymentTime = Date.now() - startTime;
+    
+    logger.info(`Deployment completed successfully`, {
+      deploymentId,
+      projectName,
+      url: cloudfrontUrl,
+      deploymentTime
+    });
+    
+    res.status(200).json({
+      success: true,
+      url: cloudfrontUrl,
+      deploymentId,
+      deploymentTime,
+      message: 'Project deployed successfully'
+    });
+    
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, error: error.message });
+    logger.error(`Deployment failed for ${projectName}`, {
+      deploymentId,
+      error: error.message,
+      stack: error.stack
+    });
+    
+    // Pass the error to the global error handler
+    next(error);
+  } finally {
+    // Always cleanup temp directory
+    await cleanupTempDirectory(tempDir);
   }
 };
 
