@@ -11,34 +11,22 @@ export const deploymentSchema = Joi.object({
       'string.uri': 'Invalid URL format.',
       'any.required': 'GitHub URL is required.'
     }),
-  
-  projectName: Joi.string()
-    .alphanum()
-    .min(3)
-    .max(50)
-    .lowercase()
-    .required()
-    .messages({
-      'string.alphanum': 'Project name must contain only alphanumeric characters.',
-      'string.min': 'Project name must be at least 3 characters long.',
-      'string.max': 'Project name must not exceed 50 characters.',
-      'any.required': 'Project name is required.'
-    }),
-    
-  buildCommand: Joi.string()
-    .optional()
-    .default('npm run build')
-    .messages({
-      'string.base': 'Build command must be a string.'
-    }),
-    
-  outputDir: Joi.string()
-    .optional()
-    .default('build')
-    .messages({
-      'string.base': 'Output directory must be a string.'
-    }),
-    
+
+  projectName: Joi.string().alphanum().min(3).max(50).lowercase().required().messages({
+    'string.alphanum': 'Project name must contain only alphanumeric characters.',
+    'string.min': 'Project name must be at least 3 characters long.',
+    'string.max': 'Project name must not exceed 50 characters.',
+    'any.required': 'Project name is required.'
+  }),
+
+  buildCommand: Joi.string().optional().default('npm run build').messages({
+    'string.base': 'Build command must be a string.'
+  }),
+
+  outputDir: Joi.string().optional().default('build').messages({
+    'string.base': 'Output directory must be a string.'
+  }),
+
   nodeVersion: Joi.string()
     .pattern(/^\d+\.\d+\.\d+$/)
     .optional()
@@ -46,13 +34,10 @@ export const deploymentSchema = Joi.object({
     .messages({
       'string.pattern.base': 'Node version must be in format x.y.z (e.g., 18.0.0).'
     }),
-    
-  environmentVariables: Joi.object()
-    .pattern(Joi.string(), Joi.string())
-    .optional()
-    .messages({
-      'object.base': 'Environment variables must be an object with string keys and values.'
-    })
+
+  environmentVariables: Joi.object().pattern(Joi.string(), Joi.string()).optional().messages({
+    'object.base': 'Environment variables must be an object with string keys and values.'
+  })
 });
 
 export const validateDeployment = (req, res, next) => {
@@ -71,7 +56,7 @@ export const validateDeployment = (req, res, next) => {
 };
 
 // Generic validation middleware factory
-export const validate = (schema) => {
+export const validate = schema => {
   return (req, res, next) => {
     const { error, value } = schema.validate(req.body, {
       abortEarly: false,
@@ -87,4 +72,3 @@ export const validate = (schema) => {
     next();
   };
 };
-

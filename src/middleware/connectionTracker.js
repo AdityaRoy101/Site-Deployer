@@ -52,7 +52,7 @@ class ConnectionTracker {
     }
 
     logger.info(`Waiting for ${this.connections.size} active connections to finish...`);
-    
+
     return new Promise((resolve, reject) => {
       const checkInterval = 100; // Check every 100ms
       const maxWait = timeout;
@@ -83,7 +83,7 @@ class ConnectionTracker {
   // Force close all tracked connections
   forceCloseConnections() {
     logger.warn(`Force closing ${this.connections.size} remaining connections`);
-    
+
     for (const req of this.connections) {
       try {
         if (req.socket && !req.socket.destroyed) {
@@ -93,7 +93,7 @@ class ConnectionTracker {
         logger.error('Error force closing connection:', error);
       }
     }
-    
+
     this.connections.clear();
   }
 }

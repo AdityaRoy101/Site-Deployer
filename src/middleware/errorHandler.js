@@ -9,7 +9,7 @@ export class AppError extends Error {
   }
 }
 
-export const errorHandler = (err, req, res, next) => {
+export const globalErrorHandler = (err, req, res, next) => {
   let error = { ...err };
   error.message = err.message;
 

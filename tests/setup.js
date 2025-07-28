@@ -9,7 +9,7 @@ process.env.NODE_ENV = 'test';
 process.env.LOG_LEVEL = 'error'; // Reduce logging during tests
 
 // Mock Redis client for tests
-jest.mock('../src/config/database.js', () => ({
+jest.mock('./setup/redisSetup', () => ({
   connectRedis: jest.fn().mockResolvedValue({}),
   getRedisClient: jest.fn().mockReturnValue({
     get: jest.fn(),

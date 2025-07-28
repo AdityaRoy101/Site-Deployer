@@ -1,16 +1,16 @@
-import { app, _server } from "../setup/expressSetup.js";
-import { registerHealthRoutes } from "./routes/healthRoutes.js";
+import { app, _server } from '../setup/expressSetup.js';
+import { registerHealthRoutes } from './routes/healthRoutes.js';
 import logger from '../setup/logger.js';
 import { initializeRedis, disconnectRedis } from '../setup/redisSetup.js';
-import router from "./routes/index.js";
-import { errorHandler, notFound } from "./middleware/errorHandler.js";
+import router from './routes/index.js';
+import { globalErrorHandler, notFound } from './middleware/errorHandler.js';
 
 (async () => {
   try {
     logger.info('Application Started');
 
-    // gracefulShutdown
-    const gracefulShutdown = async (signal) => {
+    // GracefulShutdown
+    const gracefulShutdown = async signal => {
       logger.info(`Received ${signal}. Starting graceful shutdown...`);
       const shutdownTimeout = parseInt(process.env.SHUTDOWN_TIMEOUT_MS) || 30000;
 
@@ -20,7 +20,7 @@ import { errorHandler, notFound } from "./middleware/errorHandler.js";
       }, shutdownTimeout);
 
       try {
-        _server.close(async (err) => {
+        _server.close(async err => {
           if (err) {
             logger.error('Error during server close:', err);
             clearTimeout(shutdownTimer);
@@ -59,7 +59,7 @@ import { errorHandler, notFound } from "./middleware/errorHandler.js";
     app.use(notFound);
 
     // Global error handler
-    app.use(errorHandler);
+    app.use(globalErrorHandler);
 
     logger.info('Express Server is up and listening');
   } catch (e) {

@@ -1,8 +1,9 @@
 import express from 'express';
 import compression from 'compression';
-import config from '../src/config/index.js';
+// import config from '../src/config/index.js';
 import connectionTracker from '../src/middleware/connectionTracker.js';
 import { serverSetup } from './serverSetup.js';
+import { config } from '../src/config/index.js';
 
 export const app = express();
 

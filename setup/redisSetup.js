@@ -1,6 +1,7 @@
 import { createClient } from 'redis';
 import logger from './logger.js';
-import config from '../src/config/index.js';
+import { config } from '../src/config/index.js';
+// import config from '../src/config/index.js';
 
 let redisClient = null;
 

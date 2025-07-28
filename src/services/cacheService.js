@@ -1,4 +1,3 @@
-// import { getRedisClient } from '../config/database.js';
 import logger from '../../setup/logger.js';
 import { getRedisClient } from '../../setup/redisSetup.js';
 
@@ -10,15 +9,15 @@ class CacheService {
   async get(key) {
     try {
       if (!this.enabled) return null;
-      
+
       const client = getRedisClient();
       const data = await client.get(key);
-      
+
       if (data) {
         logger.debug(`Cache hit for key: ${key}`);
         return JSON.parse(data);
       }
-      
+
       logger.debug(`Cache miss for key: ${key}`);
       return null;
     } catch (error) {
@@ -31,10 +30,10 @@ class CacheService {
   async set(key, value, ttl = 3600) {
     try {
       if (!this.enabled) return false;
-      
+
       const client = getRedisClient();
       const serializedValue = JSON.stringify(value);
-      
+
       await client.setEx(key, ttl, serializedValue);
       logger.debug(`Cache set for key: ${key}, TTL: ${ttl}s`);
       return true;
@@ -48,7 +47,7 @@ class CacheService {
   async del(key) {
     try {
       if (!this.enabled) return false;
-      
+
       const client = getRedisClient();
       const result = await client.del(key);
       logger.debug(`Cache delete for key: ${key}`);
@@ -63,7 +62,7 @@ class CacheService {
   async flush() {
     try {
       if (!this.enabled) return false;
-      
+
       const client = getRedisClient();
       await client.flushAll();
       logger.info('Cache flushed successfully');
@@ -78,7 +77,7 @@ class CacheService {
   async exists(key) {
     try {
       if (!this.enabled) return false;
-      
+
       const client = getRedisClient();
       const result = await client.exists(key);
       return result === 1;
@@ -92,15 +91,15 @@ class CacheService {
   async setMultiple(keyValuePairs, ttl = 3600) {
     try {
       if (!this.enabled) return false;
-      
+
       const client = getRedisClient();
       const pipeline = client.multi();
-      
+
       for (const [key, value] of keyValuePairs) {
         const serializedValue = JSON.stringify(value);
         pipeline.setEx(key, ttl, serializedValue);
       }
-      
+
       await pipeline.exec();
       logger.debug(`Cache set multiple: ${keyValuePairs.length} keys`);
       return true;
@@ -114,17 +113,17 @@ class CacheService {
   async getMultiple(keys) {
     try {
       if (!this.enabled) return {};
-      
+
       const client = getRedisClient();
       const values = await client.mGet(keys);
-      
+
       const result = {};
       keys.forEach((key, index) => {
         if (values[index]) {
           result[key] = JSON.parse(values[index]);
         }
       });
-      
+
       logger.debug(`Cache get multiple: ${keys.length} keys, ${Object.keys(result).length} hits`);
       return result;
     } catch (error) {

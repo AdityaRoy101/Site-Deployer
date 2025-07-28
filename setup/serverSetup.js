@@ -1,9 +1,10 @@
 import rateLimit from "express-rate-limit";
-import config from '../src/config/index.js';
+// import {config} from '../src/config/index.js';
 import helmet from "helmet";
 import morgan from "morgan";
 import cors from 'cors';
 import logger from '../setup/logger.js';
+import { config } from "../src/config/index.js";
 
 export const serverSetup = {
     security: helmet({
