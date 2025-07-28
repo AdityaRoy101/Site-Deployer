@@ -106,60 +106,6 @@ See `.env.example` for all available configuration options.
 }
 ```
 
-## Deployment Options
-
-### 1. Traditional Server Deployment
-
-```bash
-# Install PM2 globally
-npm install -g pm2
-
-# Start with PM2
-npm run pm2:start
-
-# Monitor
-npm run pm2:logs
-```
-
-### 2. Docker Deployment
-
-```bash
-# Build and run
-npm run docker:build
-npm run docker:run
-
-# Or use Docker Compose
-docker-compose up -d
-```
-
-### 3. Kubernetes Deployment
-
-See `k8s/` directory for Kubernetes manifests.
-
-## Architecture
-
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   API Gateway   │───▶│  Load Balancer  │───▶│   App Cluster   │
-│   (Optional)    │    │    (Nginx)      │    │    (PM2/K8s)    │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-                                                        │
-┌─────────────────┐    ┌─────────────────┐             │
-│     Redis       │◀───│  Cache Service  │◀────────────┘
-│    (Cache)      │    │                 │
-└─────────────────┘    └─────────────────┘
-                                │
-┌─────────────────┐    ┌─────────────────┐
-│   AWS S3        │◀───│  Deploy Service │
-│  (Storage)      │    │                 │
-└─────────────────┘    └─────────────────┘
-        │
-┌─────────────────┐
-│ CloudFront CDN  │
-│ (Distribution)  │
-└─────────────────┘
-```
-
 ## Performance Optimizations
 
 - **Caching**: Redis-based deployment caching
@@ -183,14 +129,11 @@ See `k8s/` directory for Kubernetes manifests.
 ### Logs
 
 - **Application Logs**: `logs/application-YYYY-MM-DD.log`
-- **PM2 Logs**: `logs/pm2-*.log`
 - **Access Logs**: Morgan HTTP request logging
 
 ### Health Monitoring
 
 - **Health Endpoint**: `/api/v1/health/health`
-- **Docker Health Check**: Built-in container health monitoring
-- **PM2 Monitoring**: Process-level monitoring and auto-restart
 
 ## Development
 
