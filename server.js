@@ -1,9 +1,9 @@
-import app from './src/app.js';
+import './src/app.js';
 import dotenv from 'dotenv';
+
 dotenv.config();
 
-const PORT = process.env.PORT;
-
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+process.on('uncaughtException', (err) => {
+	console.error('There was an uncaught error', err);
+	process.exit(1);
 });
