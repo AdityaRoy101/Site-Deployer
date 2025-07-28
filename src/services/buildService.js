@@ -42,21 +42,38 @@ const buildProject = async (projectPath, options = {}) => {
           ? 'npm ci --only=production --silent'
           : 'npm install --legacy-peer-deps --silent';
 
-      execSync(installCommand, {
+      const result = execSync(installCommand, {
         cwd: projectPath,
         stdio: 'pipe',
         env: buildEnv,
-        timeout: config.build.timeout
+        timeout: config.build.timeout,
+        encoding: 'utf8'
       });
+
+      logger.debug('Install output:', result);
     } catch (installError) {
       // Fallback to npm install if npm ci fails
-      logger.warn('Primary install command failed, falling back to npm install');
-      execSync('npm install --legacy-peer-deps --silent', {
-        cwd: projectPath,
-        stdio: 'pipe',
-        env: buildEnv,
-        timeout: config.build.timeout
+      logger.warn('Primary install command failed, falling back to npm install', {
+        error: installError.message,
+        stderr: installError.stderr?.toString()
       });
+
+      try {
+        const fallbackResult = execSync('npm install --legacy-peer-deps --silent', {
+          cwd: projectPath,
+          stdio: 'pipe',
+          env: buildEnv,
+          timeout: config.build.timeout,
+          encoding: 'utf8'
+        });
+        logger.debug('Fallback install output:', fallbackResult);
+      } catch (fallbackError) {
+        logger.error('Both install commands failed', {
+          primaryError: installError.message,
+          fallbackError: fallbackError.message
+        });
+        throw new AppError('Failed to install dependencies. Check package.json for issues.', 500);
+      }
     }
 
     const installTime = Date.now() - installStartTime;

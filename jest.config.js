@@ -1,13 +1,7 @@
 export default {
   testEnvironment: 'node',
   transform: {},
-  extensionsToTreatAsEsm: ['.js'],
-  globals: {
-    'ts-jest': {
-      useESM: true
-    }
-  },
-  moduleNameMapping: {
+  moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1'
   },
   coverageDirectory: 'coverage',
@@ -23,5 +17,6 @@ export default {
     '**/?(*.)+(spec|test).js'
   ],
   setupFilesAfterEnv: ['<rootDir>/tests/setup.js'],
-  testTimeout: 30000
+  testTimeout: 30000,
+  preset: 'jest-environment-node'
 };

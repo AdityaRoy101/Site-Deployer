@@ -45,7 +45,6 @@ try {
 } catch (error) {
   console.error('Error starting the server:', error);
   process.exit(1);
-  
 }
 
 export { _server };

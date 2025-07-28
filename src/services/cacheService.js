@@ -11,6 +11,11 @@ class CacheService {
       if (!this.enabled) return null;
 
       const client = getRedisClient();
+      if (!client || !client.isReady) {
+        logger.debug('Redis client not ready, skipping cache get');
+        return null;
+      }
+
       const data = await client.get(key);
 
       if (data) {
@@ -22,7 +27,9 @@ class CacheService {
       return null;
     } catch (error) {
       logger.warn(`Cache get failed for key ${key}: ${error.message}`);
-      this.enabled = false;
+      if (error.message.includes('Redis client not initialized')) {
+        this.enabled = false;
+      }
       return null;
     }
   }

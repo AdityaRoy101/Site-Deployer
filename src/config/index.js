@@ -3,13 +3,52 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // Validate required environment variables
-const requiredVars = ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_REGION', 'CLOUDFRONT_URL'];
+const requiredVars = {
+  AWS_ACCESS_KEY_ID: 'AWS Access Key ID for S3 uploads',
+  AWS_SECRET_ACCESS_KEY: 'AWS Secret Access Key for S3 uploads',
+  AWS_REGION: 'AWS Region for S3 bucket',
+  CLOUDFRONT_URL: 'CloudFront distribution URL for CDN'
+};
 
-const missingVars = requiredVars.filter(varName => !process.env[varName]);
+const validateConfig = () => {
+  const missingVars = [];
+  const invalidVars = [];
 
-if (missingVars.length > 0) {
-  throw new Error(`Missing required environment variables: ${missingVars.join(', ')}`);
-}
+  Object.entries(requiredVars).forEach(([varName, description]) => {
+    const value = process.env[varName];
+    if (!value) {
+      missingVars.push(`${varName} (${description})`);
+    } else {
+      // Additional validation
+      if (varName === 'CLOUDFRONT_URL' && !value.startsWith('https://')) {
+        invalidVars.push(`${varName} must start with https://`);
+      }
+      if (varName === 'AWS_REGION' && !/^[a-z0-9-]+$/.test(value)) {
+        invalidVars.push(`${varName} has invalid format`);
+      }
+    }
+  });
+
+  if (missingVars.length > 0) {
+    console.error('❌ Missing required environment variables:');
+    missingVars.forEach(varInfo => console.error(`  - ${varInfo}`));
+    console.error('\n💡 Please check your .env file or environment variables.');
+    throw new Error(
+      `Missing required environment variables: ${missingVars.map(v => v.split(' ')[0]).join(', ')}`
+    );
+  }
+
+  if (invalidVars.length > 0) {
+    console.error('❌ Invalid environment variables:');
+    invalidVars.forEach(varInfo => console.error(`  - ${varInfo}`));
+    throw new Error(`Invalid environment variables: ${invalidVars.join(', ')}`);
+  }
+
+  // console.log('✅ All required environment variables are present and valid');
+};
+
+// Run validation
+validateConfig();
 
 export const config = {
   port: process.env.PORT || 3000,

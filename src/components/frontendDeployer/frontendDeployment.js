@@ -30,13 +30,13 @@ export const deployStaticApp = async ({ githubUrl, projectName, buildCommand, ou
 
     if (cachedResult) {
       logger.info(`Returning cached deployment result for ${projectName}`);
-      return res.status(200).json({
+      return {
         success: true,
         url: cachedResult.url,
         deploymentId,
         cached: true,
         message: 'Deployment served from cache'
-      });
+      };
     }
 
     // Step 1: Clone repository
@@ -94,8 +94,8 @@ export const deployStaticApp = async ({ githubUrl, projectName, buildCommand, ou
       stack: error.stack
     });
 
-    // Pass the error to the global error handler
-    next(error);
+    // Re-throw the error to be handled by the controller
+    throw error;
   } finally {
     // Always cleanup temp directory
     await cleanupTempDirectory(tempDir);

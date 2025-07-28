@@ -1,5 +1,5 @@
-export function registerHealthRoutes(router) {
-  router.get('/health', async (req, res) => {
+export function registerHealthRoutes(app) {
+  app.get('/health', async (req, res) => {
     try {
       res.status(200).json({
         success: true,

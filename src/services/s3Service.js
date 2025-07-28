@@ -20,31 +20,46 @@ const s3Config = new AWS.S3({
 
 const uploadFile = async (filePath, s3Key, bucketName) => {
   try {
-    const fileContent = await fs.readFile(filePath);
+    const stats = await fs.stat(filePath);
     const contentType = mime.lookup(filePath) || 'application/octet-stream';
+
+    // For large files, use streaming upload to save memory
+    let body;
+    if (stats.size > 50 * 1024 * 1024) {
+      // 50MB threshold
+      body = fs.createReadStream(filePath);
+      logger.debug(`Using stream upload for large file: ${s3Key} (${stats.size} bytes)`);
+    } else {
+      body = await fs.readFile(filePath);
+    }
 
     const uploadParams = {
       Bucket: bucketName,
       Key: s3Key,
-      Body: fileContent,
+      Body: body,
       ContentType: contentType,
       CacheControl: getCacheControl(contentType)
       // ACL removed - bucket should be configured with public access policies instead
     };
 
-    // Add compression for text files
+    // Add compression for small text files only (streaming compression is complex)
     if (
-      contentType.startsWith('text/') ||
-      contentType.includes('javascript') ||
-      contentType.includes('json')
+      stats.size < 10 * 1024 * 1024 && // Only compress files < 10MB
+      (contentType.startsWith('text/') ||
+        contentType.includes('javascript') ||
+        contentType.includes('json') ||
+        contentType.includes('css'))
     ) {
       uploadParams.ContentEncoding = 'gzip';
       const zlib = await import('zlib');
-      uploadParams.Body = zlib.gzipSync(fileContent);
+      // Only compress if we have the file content in memory
+      if (!stats.size > 50 * 1024 * 1024) {
+        uploadParams.Body = zlib.gzipSync(body);
+      }
     }
 
     const result = await s3Config.upload(uploadParams).promise();
-    logger.debug(`Uploaded file: ${s3Key}`);
+    logger.debug(`Uploaded file: ${s3Key} (${stats.size} bytes)`);
     return result;
   } catch (error) {
     logger.error(`Failed to upload file ${filePath}:`, error);
