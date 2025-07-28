@@ -1,53 +1,68 @@
-import express from 'express';
-import compression from 'compression';
-import config from './config/index.js';
-import deployRoutes from './routes/deployRoutes.js';
-import healthRoutes from './routes/healthRoutes.js';
-import { errorHandler, notFound } from './middleware/errorHandler.js';
-import connectionTracker from './middleware/connectionTracker.js';
-import { serverSetup } from '../setup/serverSetup.js';
-import { initializeRedis } from '../setup/redisSetup.js';
+import { app, _server } from "../setup/expressSetup.js";
+import { registerHealthRoutes } from "./routes/healthRoutes.js";
+import logger from '../setup/logger.js';
+import { initializeRedis, disconnectRedis } from '../setup/redisSetup.js';
+import router from "./routes/index.js";
+import { errorHandler, notFound } from "./middleware/errorHandler.js";
 
-const app = express();
+(async () => {
+  try {
+    logger.info('Application Started');
 
-// Trust proxy if behind reverse proxy (nginx, load balancer, etc.)
-if (config.security.trustProxy) {
-  app.set('trust proxy', 1);
-}
+    // gracefulShutdown
+    const gracefulShutdown = async (signal) => {
+      logger.info(`Received ${signal}. Starting graceful shutdown...`);
+      const shutdownTimeout = parseInt(process.env.SHUTDOWN_TIMEOUT_MS) || 30000;
 
-// Security middleware
-app.use(serverSetup.security);
+      const shutdownTimer = setTimeout(() => {
+        logger.error('Graceful shutdown timed out, forcing exit');
+        process.exit(1);
+      }, shutdownTimeout);
 
-// CORS configuration
-app.use(serverSetup.CORS);
+      try {
+        _server.close(async (err) => {
+          if (err) {
+            logger.error('Error during server close:', err);
+            clearTimeout(shutdownTimer);
+            process.exit(1);
+            return;
+          }
 
-// Compression middleware
-app.use(compression());
+          logger.info('HTTP server closed');
+          await disconnectRedis();
+          logger.info('Redis connection closed');
 
-// Rate limiting
-app.use(serverSetup.limiter);
+          clearTimeout(shutdownTimer);
+          logger.info('Graceful shutdown completed successfully');
+          process.exit(0);
+        });
+      } catch (error) {
+        logger.error('Error during graceful shutdown:', error);
+        clearTimeout(shutdownTimer);
+        process.exit(1);
+      }
+    };
 
-// Logging middleware
-app.use(serverSetup.logging);
+    process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
-// Body parsing middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+    // Server Config for services
+    await initializeRedis();
 
-// Connection tracking middleware for graceful shutdown
-app.use(connectionTracker.middleware());
+    // Registered Routes
+    registerHealthRoutes(app);
 
-// Routes
-app.use('/api/v1/health', healthRoutes);
-app.use('/api/v1', deployRoutes);
+    // Main Entry Routes
+    app.use('/api/v1', router);
 
-// 404 handler
-app.use(notFound);
+    // 404 handler
+    app.use(notFound);
 
-// Global error handler
-app.use(errorHandler);
+    // Global error handler
+    app.use(errorHandler);
 
-// Initialize Redis
-initializeRedis();
-
-export default app;
+    logger.info('Express Server is up and listening');
+  } catch (e) {
+    logger.error('Error during app startup:', e);
+  }
+})();

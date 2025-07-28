@@ -1,13 +1,13 @@
-import express from 'express';
-
-const router = express.Router();
-
-router.get('/health', (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: 'Service is healthy',
-    timestamp: new Date().toISOString()
+export function registerHealthRoutes(router) {
+  router.get('/health', async (req, res) => {
+    try {
+      res.status(200).json({
+        success: true,
+        message: 'Service is healthy',
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      res.status(500).json({ error });
+    }
   });
-});
-
-export default router;
+}

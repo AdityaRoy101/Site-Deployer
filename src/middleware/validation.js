@@ -1,7 +1,7 @@
 import Joi from 'joi';
 import { AppError } from './errorHandler.js';
 
-const deploymentSchema = Joi.object({
+export const deploymentSchema = Joi.object({
   githubUrl: Joi.string()
     .uri()
     .pattern(/^https:\/\/github\.com\/[^\/]+\/[^\/]+(?:\.git)?$/)
@@ -55,7 +55,7 @@ const deploymentSchema = Joi.object({
     })
 });
 
-const validateDeployment = (req, res, next) => {
+export const validateDeployment = (req, res, next) => {
   const { error, value } = deploymentSchema.validate(req.body, {
     abortEarly: false,
     stripUnknown: true
@@ -71,7 +71,7 @@ const validateDeployment = (req, res, next) => {
 };
 
 // Generic validation middleware factory
-const validate = (schema) => {
+export const validate = (schema) => {
   return (req, res, next) => {
     const { error, value } = schema.validate(req.body, {
       abortEarly: false,
@@ -88,4 +88,3 @@ const validate = (schema) => {
   };
 };
 
-export { validateDeployment, validate, deploymentSchema };
